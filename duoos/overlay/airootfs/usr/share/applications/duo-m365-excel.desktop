@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Excel (Microsoft 365)
+Comment=Microsoft 365 in FireDragon
+Exec=firedragon --new-window https://www.office.com/launch/excel
+Icon=x-office-spreadsheet
+Terminal=false
+Categories=Office;Network;

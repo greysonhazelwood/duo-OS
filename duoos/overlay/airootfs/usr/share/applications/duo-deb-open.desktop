@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Install .deb Package
+Comment=Install Debian packages on DuoOS
+Exec=duo-deb-open %F
+Icon=package-x-generic
+Terminal=false
+Categories=System;PackageManager;
+MimeType=application/vnd.debian.binary-package;application/x-deb;

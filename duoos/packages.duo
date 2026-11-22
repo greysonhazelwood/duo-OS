@@ -1,0 +1,44 @@
+# --- desktop ---
+hyprland
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+hyprpolkitagent
+quickshell
+qt6-declarative
+qt6-wayland
+qt6-svg
+mako
+foot
+nautilus
+grim
+slurp
+wl-clipboard
+brightnessctl
+playerctl
+libnotify
+zenity
+zsh
+sudo
+# --- audio / network ---
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+networkmanager
+# --- look ---
+inter-font
+ttf-jetbrains-mono-nerd
+noto-fonts
+noto-fonts-emoji
+papirus-icon-theme
+adwaita-icon-theme
+# --- apps ---
+chaotic-keyring
+chaotic-mirrorlist
+firedragon
+libreoffice-fresh
+# --- the Debian half ---
+distrobox
+podman
+dpkg
+debtap

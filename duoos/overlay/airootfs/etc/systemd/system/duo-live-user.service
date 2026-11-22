@@ -1,0 +1,12 @@
+[Unit]
+Description=Create the DuoOS live user
+Before=getty@tty1.service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/sh -c 'id live >/dev/null 2>&1 || { useradd -m -G wheel,video,audio,input -s /usr/bin/zsh live && passwd -d live; }'
+
+[Install]
+WantedBy=multi-user.target

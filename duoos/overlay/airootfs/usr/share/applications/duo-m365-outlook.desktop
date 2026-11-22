@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Outlook (Microsoft 365)
+Comment=Microsoft 365 in FireDragon
+Exec=firedragon --new-window https://outlook.office.com
+Icon=mail-client
+Terminal=false
+Categories=Office;Network;

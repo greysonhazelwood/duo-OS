@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# duo-deb-open — double-click a .deb on DuoOS.
+# Offers two ways to install it:
+#   1) Debian layer  (recommended): real apt + dpkg in an isolated Debian container,
+#                    dependencies resolved by Debian, app exported to the start menu.
+#   2) Native Arch   : converts the .deb with debtap and installs it with pacman.
+set -uo pipefail
+
+notify() { notify-send -a "DuoOS" "$1" "${2:-}" 2>/dev/null || true; }
+
+if [ $# -eq 0 ]; then
+  f=$(zenity --file-selection --title="Choose a .deb package" --file-filter='Debian packages | *.deb') || exit 0
+  set -- "$f"
+fi
+
+for deb in "$@"; do
+  [ -f "$deb" ] || continue
+  pkg=$(dpkg-deb -f "$deb" Package 2>/dev/null)       || { zenity --error --text="Not a valid .deb file:\n$deb"; continue; }
+  ver=$(dpkg-deb -f "$deb" Version 2>/dev/null)
+  arch=$(dpkg-deb -f "$deb" Architecture 2>/dev/null)
+  desc=$(dpkg-deb -f "$deb" Description 2>/dev/null | head -n1)
+
+  case "$arch" in
+    amd64|all) ;;
+    *) zenity --warning --no-markup --text="$pkg is built for '$arch', but this system is x86_64 (amd64)." ; continue ;;
+  esac
+
+  choice=$(zenity --list --radiolist --no-markup --width=620 --height=340 \
+      --title="Install $pkg" \
+      --text="$pkg  $ver  ($arch)\n$desc\n\nHow should DuoOS install it?" \
+      --column="" --column="Method" \
+      TRUE  "Debian layer (recommended: isolated, apt resolves dependencies)" \
+      FALSE "Native Arch package (convert with debtap, install with pacman)") || continue
+
+  case "$choice" in
+    Debian*)
+      log=$(mktemp)
+      duo-debian install "$deb" >"$log" 2>&1 &
+      pid=$!
+      ( while kill -0 "$pid" 2>/dev/null; do sleep 1; done ) | \
+        zenity --progress --pulsate --auto-close --no-cancel --title="DuoOS" \
+               --text="Installing $pkg in the Debian layer…\n(the first run downloads Debian, this can take a few minutes)"
+      wait "$pid"; rc=$?
+      if [ $rc -eq 0 ]; then
+        notify "$pkg installed" "Find it in the start menu."
+      else
+        zenity --text-info --title="Install failed: $pkg" --width=700 --height=420 --filename="$log"
+      fi
+      rm -f "$log" ;;
+    Native*)
+      foot -T "DuoOS: converting $pkg" bash -c '
+        set -e
+        work=$(mktemp -d); cp "$1" "$work/"; cd "$work"
+        if [ -z "$(ls -A /var/cache/debtap 2>/dev/null)" ]; then
+          echo "First run: updating the debtap database (a few minutes)…"; sudo debtap -u
+        fi
+        debtap -Q "$(basename "$1")"
+        sudo pacman -U --noconfirm ./*.pkg.tar.zst
+        echo; read -rp "Done. Press Enter to close."' _ "$deb" ;;
+  esac
+done

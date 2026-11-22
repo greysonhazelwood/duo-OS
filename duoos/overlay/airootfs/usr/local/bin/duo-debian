@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# duo-debian — the Debian half of DuoOS.
+# A real Debian userland runs in a Distrobox container, integrated with the Arch host:
+# shared $HOME, shared Wayland/audio, and installed GUI apps appear in the start menu.
+#
+#   duo-debian install foo.deb    install a .deb (+ its dependencies via apt)
+#   duo-debian sync               (re)export Debian apps to the start menu
+#   duo-debian shell              open a Debian shell
+#   apt / apt-get                 symlinks to this script: they run apt inside Debian
+set -uo pipefail
+
+NAME="${DUO_DEBIAN_NAME:-duo-debian}"
+IMAGE="${DUO_DEBIAN_IMAGE:-docker.io/library/debian:stable}"
+
+in_box() { distrobox enter "$NAME" -- "$@"; }
+
+exists() {
+  distrobox list --no-color 2>/dev/null \
+    | awk -F'|' 'NR>1 { gsub(/^ +| +$/, "", $2); print $2 }' | grep -qx "$NAME"
+}
+
+ensure() {
+  exists && return 0
+  echo ">> Creating the Debian layer ($IMAGE) — first run only, needs internet…"
+  distrobox create --yes --no-entry --name "$NAME" --image "$IMAGE" || return 1
+  in_box sudo apt-get update || return 1
+}
+
+sync_apps() {
+  local f app
+  while IFS= read -r f; do
+    app=$(basename "$f" .desktop)
+    in_box distrobox-export --app "$app" </dev/null >/dev/null 2>&1 || true
+  done < <(in_box sh -c 'ls /usr/share/applications/*.desktop 2>/dev/null' </dev/null)
+}
+
+install_deb() {
+  local deb path
+  deb=$(realpath "$1") || return 1
+  case "$deb" in
+    "$HOME"/*) path="$deb" ;;
+    *) mkdir -p "$HOME/.cache/duo-deb"; path="$HOME/.cache/duo-deb/$(basename "$deb")"; cp -f "$deb" "$path" ;;
+  esac
+  ensure || return 1
+  in_box sudo apt-get install -y "$path" || return 1
+  sync_apps
+}
+
+# Invoked as "apt" / "apt-get": forward to Debian.
+case "$(basename "$0")" in
+  apt|apt-get)
+    ensure || exit 1
+    sub=""; for a in "$@"; do case "$a" in -*) ;; *) sub="$a"; break ;; esac; done
+    in_box sudo "$(basename "$0")" "$@"; rc=$?
+    case "$sub" in install|reinstall|upgrade|full-upgrade|dist-upgrade|remove|purge|autoremove) sync_apps ;; esac
+    exit $rc ;;
+esac
+
+case "${1:-}" in
+  ensure)  ensure ;;
+  sync)    ensure && sync_apps ;;
+  install) shift; install_deb "${1:?usage: duo-debian install file.deb}" ;;
+  shell)   ensure && exec distrobox enter "$NAME" ;;
+  *) sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac
