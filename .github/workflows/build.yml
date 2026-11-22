@@ -1,0 +1,28 @@
+name: Build DuoOS ISO
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space on the runner
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache
+          df -h /
+
+      - name: Build the ISO inside a real Arch Linux container
+        run: |
+          docker run --privileged --rm -v "$PWD":/duoos archlinux bash -c \
+            "pacman -Syu --noconfirm && cd /duoos && chmod +x build.sh && ./build.sh"
+
+      - name: Upload the ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: duoos-iso
+          path: out/*.iso
+          retention-days: 7
